@@ -58,6 +58,14 @@ const TYPE_COLORS: Record<TableType, string> = {
   snooker: "bg-green-700",
 };
 
+function toLocalTimestamp(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function formatClock(secondsTotal: number) {
   const hours = Math.floor(secondsTotal / 3600);
   const minutes = Math.floor((secondsTotal % 3600) / 60);
@@ -153,7 +161,7 @@ export default function Home() {
     const { error } = await supabase.from("game_sessions").insert({
       table_number: table.number,
       table_type: table.type,
-      start_time: new Date().toISOString(),
+      start_time: toLocalTimestamp(new Date()),
       status: "active",
     });
 
@@ -173,6 +181,7 @@ export default function Home() {
 
     const endTime = new Date();
     const startTime = new Date(session.start_time);
+
     const durationMinutes = Math.max(
       1,
       Math.ceil((endTime.getTime() - startTime.getTime()) / 60000)
@@ -188,7 +197,7 @@ export default function Home() {
       .from("game_sessions")
       .update({
         table_type: tableConfig?.type ?? session.table_type ?? null,
-        end_time: endTime.toISOString(),
+        end_time: toLocalTimestamp(endTime),
         duration_minutes: durationMinutes,
         hourly_rate: Number(hourlyRate.toFixed(2)),
         base_price: Number(basePrice.toFixed(2)),
@@ -206,6 +215,8 @@ export default function Home() {
     } else {
       setMessage(`Zakończono grę. Cena końcowa: ${finalPrice.toFixed(2)} zł`);
       setSelectedTable(null);
+      setMemberDiscount(false);
+      setCustomHourlyRate("");
       await loadData();
     }
 
@@ -268,7 +279,8 @@ export default function Home() {
               {TABLES.map((table) => {
                 const active = getActiveSession(table.number);
                 const isSelected = selectedTable === table.number;
-                const sizeClass = table.shape === "vertical" ? "h-[18%] w-[11%]" : "h-[12%] w-[20%]";
+                const sizeClass =
+                  table.shape === "vertical" ? "h-[18%] w-[11%]" : "h-[12%] w-[20%]";
 
                 return (
                   <button
@@ -277,11 +289,11 @@ export default function Home() {
                     className={`absolute ${table.className} ${sizeClass} ${TYPE_COLORS[table.type]} rounded-sm shadow-lg transition hover:scale-105 ${
                       active ? "ring-4 ring-red-500" : "ring-2 ring-transparent"
                     } ${isSelected ? "outline outline-4 outline-yellow-300" : ""}`}
-                    title={`Stół ${table.number} - ${table.label}`}
                   >
                     <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-3xl font-black text-slate-950 shadow md:h-16 md:w-16 md:text-5xl">
                       {table.number}
                     </span>
+
                     {active && (
                       <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white shadow">
                         {formatClock(getSessionSeconds(active))}
@@ -297,7 +309,9 @@ export default function Home() {
             <h2 className="mb-4 text-xl font-bold">Obsługa stołu</h2>
 
             {!selectedTable || !selectedConfig ? (
-              <p className="rounded-xl bg-slate-100 p-4 text-slate-600">Kliknij stół na mapie, żeby rozpocząć albo zakończyć grę.</p>
+              <p className="rounded-xl bg-slate-100 p-4 text-slate-600">
+                Kliknij stół na mapie, żeby rozpocząć albo zakończyć grę.
+              </p>
             ) : !getActiveSession(selectedTable) ? (
               <div className="space-y-4">
                 <div className="rounded-xl bg-slate-100 p-4">
@@ -306,6 +320,7 @@ export default function Home() {
                   <p className="font-semibold">{selectedConfig.label}</p>
                   <p className="mt-2 text-sm text-green-700">Status: wolny</p>
                 </div>
+
                 <button
                   disabled={loading}
                   onClick={() => startGame(selectedConfig)}
@@ -318,7 +333,9 @@ export default function Home() {
               <div className="space-y-4">
                 <div className="rounded-xl bg-red-50 p-4">
                   <p className="text-sm text-slate-500">Stół {selectedTable} — gra trwa</p>
-                  <p className="text-3xl font-black">{formatClock(getSessionSeconds(getActiveSession(selectedTable)!))}</p>
+                  <p className="text-3xl font-black">
+                    {formatClock(getSessionSeconds(getActiveSession(selectedTable)!))}
+                  </p>
                 </div>
 
                 <div className="space-y-3 rounded-xl border p-3">
@@ -342,7 +359,9 @@ export default function Home() {
                       placeholder="Zostaw puste: tydzień 40 zł / weekend 50 zł"
                       className="w-full rounded-xl border p-3"
                     />
-                    <p className="mt-1 text-sm text-slate-500">Aktualnie liczy: {getHourlyRate().toFixed(2)} zł/h</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Aktualnie liczy: {getHourlyRate().toFixed(2)} zł/h
+                    </p>
                   </div>
                 </div>
 
@@ -357,6 +376,7 @@ export default function Home() {
                       />{" "}
                       Tydzień — {PRICES.week} zł/h
                     </label>
+
                     <label className="block rounded-xl border p-3">
                       <input
                         type="radio"
@@ -401,9 +421,11 @@ export default function Home() {
                   <th className="p-2">Cena</th>
                 </tr>
               </thead>
+
               <tbody>
                 {history.map((session) => {
                   const config = getTableConfig(session.table_number);
+
                   return (
                     <tr key={session.id} className="border-b">
                       <td className="p-2 font-bold">{session.table_number}</td>
@@ -413,10 +435,20 @@ export default function Home() {
                         {session.end_time ? new Date(session.end_time).toLocaleString("pl-PL") : "-"}
                       </td>
                       <td className="p-2">{session.duration_minutes ?? "-"} min</td>
-                      <td className="p-2">{session.day_type === "weekend" ? "Weekend" : "Tydzień"}</td>
-                      <td className="p-2">{formatMoney(session.hourly_rate ?? (session.day_type === "weekend" ? PRICES.weekend : PRICES.week))}/h</td>
                       <td className="p-2">
-                        {session.member_discount_applied ? `Członek -${MEMBER_DISCOUNT_AMOUNT} zł` : session.discount_name ?? "Brak"}
+                        {session.day_type === "weekend" ? "Weekend" : "Tydzień"}
+                      </td>
+                      <td className="p-2">
+                        {formatMoney(
+                          session.hourly_rate ??
+                            (session.day_type === "weekend" ? PRICES.weekend : PRICES.week)
+                        )}
+                        /h
+                      </td>
+                      <td className="p-2">
+                        {session.member_discount_applied
+                          ? `Członek -${MEMBER_DISCOUNT_AMOUNT} zł`
+                          : session.discount_name ?? "Brak"}
                       </td>
                       <td className="p-2 font-bold">{formatMoney(session.final_price)}</td>
                     </tr>
