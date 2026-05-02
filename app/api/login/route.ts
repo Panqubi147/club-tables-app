@@ -14,10 +14,10 @@ export async function POST(request: NextRequest) {
   const appPassword = process.env.APP_PASSWORD;
 
   if (!appPassword || password !== appPassword) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", request.url), 303);
   }
 
-  const response = NextResponse.redirect(new URL("/", request.url));
+  const response = NextResponse.redirect(new URL("/", request.url), 303);
 
   response.cookies.set("club_access", makeToken(appPassword), {
     httpOnly: true,
