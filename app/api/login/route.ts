@@ -1,12 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-
-function makeToken(password: string) {
-  return crypto
-    .createHmac("sha256", password)
-    .update("club-access")
-    .digest("hex");
-}
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
@@ -19,7 +11,7 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.redirect(new URL("/", request.url), 303);
 
-  response.cookies.set("club_access", makeToken(appPassword), {
+  response.cookies.set("club_access", "ok", {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
